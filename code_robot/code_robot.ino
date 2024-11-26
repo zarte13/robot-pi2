@@ -100,12 +100,29 @@ void rotateContinuousServo(Servo servoName, float stickValue){
   servoName.writeMicroseconds(continuousServoPulseWidth);
 }
 
-void rotate180Servo(Servo servoName, float rotation){
-  int angle = servoName.read();
-  int continuousServoAngle = angle + rotation;
-  continuousServoAngle = constrain(continuousServoAngle, 0, 180);
-  servoName.write(continuousServoAngle);
+// void rotate180Servo(Servo servoName, float rotation){
+//   int angle = servoName.read();
+//   int continuousServoAngle = angle + rotation;
+//   continuousServoAngle = constrain(continuousServoAngle, 0, 180);
+//   servoName.write(continuousServoAngle);
 
+// }
+
+void rotate180Servo(Servo servoName, float rotation) {
+  static float velocity = 0;
+  int currentAngle = servoName.read();
+  
+  // Gradual acceleration
+  float acceleration = rotation * 0.5; // Adjust as needed
+  velocity += acceleration;
+  
+  // Add damping to prevent overshooting
+  velocity *= 0.9; 
+  
+  int newAngle = currentAngle + velocity;
+  newAngle = constrain(newAngle, 0, 180);
+  
+  servoName.write(newAngle);
 }
 
 void handleServoProtocol() {
