@@ -33,7 +33,7 @@ enum Protocol { SERVO, DC_MOTOR };
 Protocol currentProtocol = SERVO;
 
 // Joystick Dead Zone
-const int DEAD_ZONE = 20;
+const int DEAD_ZONE = 35;
 
 // Servo Parameters
 int continuousServoPulseWidth = 1500; // Neutral pulse width
@@ -76,9 +76,9 @@ void loop() {
       lastKeepAliveTime = currentTime;
     }
     handleServoProtocol();
-    delay(10);
+    delay(2);
     handleDCMotorProtocol();
-    delay(10);
+
   } else {
     Serial.println("Waiting for PS4 Controller...");
     delay(1000); // Delay to prevent spamming the serial monitor
@@ -136,9 +136,9 @@ void handleServoProtocol() {
   // Parameters for 180-degree servos
   const int pulseWidth180 = 2500; // Adjusted max pulse width
   const int pulseWidth0 = 500;   // Min pulse width
-  const float joystickStep = 0.035; // Adjust step size for joystick
-  const float buttonStep = 0.05;
-  const float buttonStep1 = 0.05;   // Adjust step size for buttons
+  const float joystickStep = 0.020; // Adjust step size for joystick
+  const float buttonStep = 0.007;
+  const float buttonStep1 = 0.02;   // Adjust step size for buttons
 
   // 180-Degree Servo Control (L2 and R2 Buttons)
   float l1Value = PS4.L1(); // Read L2 value as a float between 0 and 1
@@ -188,12 +188,13 @@ void handleServoProtocol() {
   // Continuous Rotation Servo Control (Left Joystick)
   int rightJoystickY = PS4.RStickY();
   float leftAxisValue = rightJoystickY / 128.0; // Normalize joystick value to -1.0 to 1.0
-  if (abs(leftAxisValue) > 0.13) {
-    continuousServoPulseWidth = 1500 + (500 * leftAxisValue); // Adjust pulse width based on joystick
-  } else {
-    continuousServoPulseWidth = 1500; // Stop
+  if (abs(leftAxisValue) > 0.15) {
+    // Move toward 0 degrees
+    continuousServoPulseWidth += continuousServoPulseWidth * leftAxisValue * buttonStep;
+    continuousServoPulseWidth = constrain(continuousServoPulseWidth, pulseWidth0, pulseWidth180);
+    continuousServo.writeMicroseconds(continuousServoPulseWidth);
   }
-  continuousServo.writeMicroseconds(continuousServoPulseWidth);
+
   Serial.print("Left Joystick Y: ");
   Serial.print(rightJoystickY);
   Serial.print(", Continuous Servo Pulse Width: ");
@@ -201,21 +202,21 @@ void handleServoProtocol() {
 }
 
 void handleDCMotorProtocol() {
-  const int pwm_min = 90;
+  const int pwm_min = 150;
   int forwardBackward = PS4.LStickY();
-  int turning = PS4.LStickX() * 0.7;
+  int turning = PS4.LStickX() * 0.8;
 
   // Apply Dead Zone
   if (abs(forwardBackward) < DEAD_ZONE) forwardBackward = 0;
   if (abs(turning) < DEAD_ZONE) turning = 0;
 
   // Calculate Motor Speeds
-  pwmRight = map(forwardBackward - turning, -128, 128, -255, 255);
-  pwmLeft = map(forwardBackward + turning, -128, 128, -255, 255);
+  pwmRight = map(forwardBackward - turning, -128, 128, -230, 230);
+  pwmLeft = map(forwardBackward + turning, -128, 128, -230, 230);
 
   // Clamp Speeds
-  pwmRight = constrain(pwmRight, -255, 255);
-  pwmLeft = constrain(pwmLeft, -255, 255);
+  pwmRight = constrain(pwmRight, -1023, 1023);
+  pwmLeft = constrain(pwmLeft, -1023, 1023);
 
   if (pwmRight >= 0) {
     digitalWrite(RIGHT_OUTPUT_3_PIN, HIGH);
